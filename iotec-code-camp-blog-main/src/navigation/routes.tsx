@@ -6,52 +6,91 @@ import { BlogDetailsPage } from '../pages/BlogDetailsPage'
 import { AdminBlogsPage } from '../pages/admin/AdminBlogsPage'
 import { AdminTransactionsPage } from '../pages/admin/AdminTransactionsPage'
 import { AdminUsersPage } from '../pages/admin/AdminUsersPage'
+import { getPostBySlug } from '../data/posts'
 import { useLocation, useNavigate } from './RouterContext'
-import { PATHS, type AppPath } from './paths'
+import { PATHS, type RoutePath } from './paths'
 
 export type RouteLayout = 'public' | 'admin'
 
+export type RouteParams = Record<string, string>
+
+export interface RouteProps {
+  params: RouteParams
+}
+
 export interface RouteConfig {
-  path: AppPath
-  title: string
+  pattern: string
+  title: string | ((params: RouteParams) => string)
   layout: RouteLayout
-  component?: ComponentType
-  redirectTo?: AppPath
+  component?: ComponentType<RouteProps>
+  redirectTo?: RoutePath
+}
+
+function matchRoute(pattern: string, pathname: string): RouteParams | null {
+  const patternSegments = pattern.split('/').filter(Boolean)
+  const pathSegments = pathname.split('/').filter(Boolean)
+
+  if (patternSegments.length !== pathSegments.length) return null
+
+  const params: RouteParams = {}
+
+  for (let index = 0; index < patternSegments.length; index += 1) {
+    const segment = patternSegments[index]
+
+    if (segment.startsWith(':')) {
+      params[segment.slice(1)] = decodeURIComponent(pathSegments[index])
+    } else if (segment !== pathSegments[index]) {
+      return null
+    }
+  }
+
+  return params
+}
+
+function findRoute(pathname: string) {
+  for (const route of ROUTES) {
+    const params = matchRoute(route.pattern, pathname)
+    if (params) return { route, params }
+  }
+  return null
 }
 
 export const ROUTES: readonly RouteConfig[] = [
   {
-    path: PATHS.LANDING,
-    title: 'The Tech Report — Notes on Technology, Architecture & Culture',
+    pattern: PATHS.LANDING,
+    title: 'The Tech Report — Writing by Onyang Bridget',
     layout: 'public',
     component: LandingPage,
   },
   {
-    path: PATHS.BLOG_DETAILS,
-    title: 'Blog Details | The Tech Report',
+    pattern: '/blog/:slug',
+    title: ({ slug }) => {
+      const post = getPostBySlug(slug)
+      return post ? `${post.title} — Onyang Bridget` : 'Article not found — The Tech Report'
+    },
     layout: 'public',
     component: BlogDetailsPage,
   },
   {
-    path: PATHS.ADMIN,
+    pattern: PATHS.ADMIN,
     title: 'Articles & Essays | Admin Dashboard — The Tech Report',
     layout: 'admin',
     redirectTo: PATHS.ADMIN_BLOGS,
   },
   {
-    path: PATHS.ADMIN_BLOGS,
+    pattern: PATHS.ADMIN_BLOGS,
     title: 'Articles & Essays | Admin Dashboard — The Tech Report',
     layout: 'admin',
     component: AdminBlogsPage,
   },
   {
-    path: PATHS.ADMIN_TRANSACTIONS,
+    pattern: PATHS.ADMIN_TRANSACTIONS,
     title: 'Transactions | Admin Dashboard — The Tech Report',
     layout: 'admin',
     component: AdminTransactionsPage,
   },
   {
-    path: PATHS.ADMIN_USERS,
+    pattern: PATHS.ADMIN_USERS,
     title: 'Users | Admin Dashboard — The Tech Report',
     layout: 'admin',
     component: AdminUsersPage,
@@ -64,34 +103,42 @@ export function AppRouter() {
   const { pathname } = useLocation()
   const navigate = useNavigate()
 
-  const matchedRoute = ROUTES.find((route) => route.path === pathname) ?? DEFAULT_ROUTE
+  const match = findRoute(pathname)
+  const matchedRoute = match?.route ?? DEFAULT_ROUTE
+  const params = match?.params ?? {}
+
+  const pageTitle =
+    typeof matchedRoute.title === 'function'
+      ? matchedRoute.title(params)
+      : matchedRoute.title
 
   useEffect(() => {
     if (matchedRoute.redirectTo) {
       navigate(matchedRoute.redirectTo, { replace: true })
       return
     }
-    document.title = matchedRoute.title
-  }, [matchedRoute, navigate])
 
-  const ResolvedRoute = matchedRoute.redirectTo
-    ? (ROUTES.find((route) => route.path === matchedRoute.redirectTo) ?? DEFAULT_ROUTE)
-    : matchedRoute
+    document.title = pageTitle
+  }, [matchedRoute.redirectTo, pageTitle, navigate])
 
-  const PageComponent = ResolvedRoute.component ?? LandingPage
+  const redirectMatch = matchedRoute.redirectTo
+    ? findRoute(matchedRoute.redirectTo)
+    : null
+  const resolvedRoute = redirectMatch?.route ?? matchedRoute
+  const PageComponent = resolvedRoute.component ?? LandingPage
+  const pageParams = redirectMatch?.params ?? params
 
-  if (ResolvedRoute.layout === 'admin') {
+  if (resolvedRoute.layout === 'admin') {
     return (
       <AdminLayout>
-        <PageComponent />
+        <PageComponent params={pageParams} />
       </AdminLayout>
     )
   }
 
   return (
     <PublicLayout>
-      <PageComponent />
+      <PageComponent params={pageParams} />
     </PublicLayout>
   )
 }
-

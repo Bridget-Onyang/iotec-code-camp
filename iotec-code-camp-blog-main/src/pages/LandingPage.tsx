@@ -1,41 +1,67 @@
-import { ArrowRight, ArrowUpRight, Lock } from 'lucide-react'
+import { useMemo, useState } from 'react'
+import { BlogCard } from '@/components/BlogCard'
 import { Button } from '@/components/ui/button'
-import { useNavigate } from '../navigation/RouterContext'
-import { PATHS } from '../navigation/paths'
+import { HeroSection } from '@/components/HeroSection'
+import { BLOG_CATEGORIES, BLOG_POSTS } from '@/data/posts'
+
+const ALL_CATEGORIES = 'All'
 
 export function LandingPage() {
-  const navigate = useNavigate()
+  const [activeCategory, setActiveCategory] = useState(ALL_CATEGORIES)
+
+  const visiblePosts = useMemo(
+    () =>
+      activeCategory === ALL_CATEGORIES
+        ? BLOG_POSTS
+        : BLOG_POSTS.filter((post) => post.category === activeCategory),
+    [activeCategory],
+  )
 
   return (
-    <div className="my-auto flex flex-col items-start py-16">
-      <h1 className="font-serif text-3xl font-normal tracking-tight text-foreground">
-        Landing Page
-      </h1>
-      <p className="mt-2 text-sm text-muted-foreground">
-        Select a destination below to navigate to the blog details or the admin dashboard.
-      </p>
+    <>
+      <HeroSection />
 
-      <div className="mt-6 flex flex-wrap items-center gap-3">
-        <Button
-          type="button"
-          onClick={() => navigate(PATHS.BLOG_DETAILS)}
-          className="px-4 py-2 text-xs font-medium shadow-2xs"
-        >
-          <span>Read Dispatch</span>
-          <ArrowUpRight aria-hidden="true" className="size-3.5" />
-        </Button>
+      <section aria-labelledby="recent-blogs-heading" className="py-12 lg:py-16">
+        <div className="flex flex-wrap items-end justify-between gap-5">
+          <div>
+            <p className="text-[10px] font-medium tracking-[0.2em] text-muted-foreground uppercase">
+              The Tech Report Archive
+            </p>
+            <h2
+              id="recent-blogs-heading"
+              className="mt-2 font-serif text-3xl font-normal tracking-tight text-foreground"
+            >
+              Recent Blogs
+            </h2>
+          </div>
 
-        <Button
-          type="button"
-          variant="outline"
-          onClick={() => navigate(PATHS.ADMIN_BLOGS)}
-          className="px-4 py-2 text-xs font-medium shadow-2xs"
-        >
-          <Lock aria-hidden="true" className="size-3.5 text-muted-foreground" />
-          <span>Admin Dashboard</span>
-          <ArrowRight aria-hidden="true" className="size-3 text-muted-foreground" />
-        </Button>
-      </div>
-    </div>
+          <div
+            role="group"
+            aria-label="Filter articles by category"
+            className="flex flex-wrap gap-1.5"
+          >
+            {[ALL_CATEGORIES, ...BLOG_CATEGORIES].map((category) => (
+              <Button
+                key={category}
+                type="button"
+                size="xs"
+                variant={activeCategory === category ? 'default' : 'outline'}
+                aria-pressed={activeCategory === category}
+                onClick={() => setActiveCategory(category)}
+                className="h-7 rounded-full px-3 text-[11px] font-medium"
+              >
+                {category}
+              </Button>
+            ))}
+          </div>
+        </div>
+
+        <div className="mt-8 grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
+          {visiblePosts.map((post) => (
+            <BlogCard key={post.slug} post={post} />
+          ))}
+        </div>
+      </section>
+    </>
   )
 }

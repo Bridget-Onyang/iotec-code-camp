@@ -9,7 +9,7 @@ import {
   type MouseEvent,
   type ReactNode,
 } from 'react'
-import { PATHS, type AppPath } from './paths'
+import { PATHS, type RoutePath } from './paths'
 
 interface NavigateOptions {
   replace?: boolean
@@ -17,7 +17,7 @@ interface NavigateOptions {
 
 interface RouterContextValue {
   pathname: string
-  navigate: (to: AppPath, options?: NavigateOptions) => void
+  navigate: (to: RoutePath, options?: NavigateOptions) => void
 }
 
 const RouterContext = createContext<RouterContextValue | null>(null)
@@ -41,7 +41,7 @@ export function RouterProvider({ children }: { children: ReactNode }) {
     return () => window.removeEventListener('popstate', handlePopState)
   }, [])
 
-  const navigate = useCallback((to: AppPath, options?: NavigateOptions) => {
+  const navigate = useCallback((to: RoutePath, options?: NavigateOptions) => {
     const normalizedTarget = normalizePath(to)
     if (window.location.pathname !== normalizedTarget) {
       if (options?.replace) {
@@ -76,7 +76,7 @@ export function useNavigate() {
 }
 
 export interface LinkProps extends Omit<AnchorHTMLAttributes<HTMLAnchorElement>, 'href'> {
-  to: AppPath
+  to: RoutePath
   replace?: boolean
 }
 
@@ -107,7 +107,7 @@ export function Link({ to, replace, onClick, children, ...rest }: LinkProps) {
 }
 
 export interface NavLinkProps extends Omit<LinkProps, 'className' | 'children'> {
-  to: AppPath
+  to: RoutePath
   className?: string | ((state: { isActive: boolean }) => string)
   children?: ReactNode | ((state: { isActive: boolean }) => ReactNode)
 }
