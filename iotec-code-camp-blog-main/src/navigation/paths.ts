@@ -2,6 +2,7 @@ import { FileText, ReceiptText, Users, type LucideIcon } from 'lucide-react'
 
 export const PATHS = {
   LANDING: '/',
+  BLOG_DETAILS: '/blog',
   ADMIN: '/admin',
   ADMIN_BLOGS: '/admin/blogs',
   ADMIN_TRANSACTIONS: '/admin/transactions',
@@ -9,14 +10,6 @@ export const PATHS = {
 } as const
 
 export type AppPath = (typeof PATHS)[keyof typeof PATHS]
-
-export type BlogPostPath = `/blog/${string}`
-
-export type RoutePath = AppPath | BlogPostPath
-
-export function blogPostPath(slug: string): BlogPostPath {
-  return `/blog/${encodeURIComponent(slug)}`
-}
 
 export interface AdminNavItem {
   label: string

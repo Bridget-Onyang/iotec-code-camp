@@ -9,15 +9,17 @@ import {
   type MouseEvent,
   type ReactNode,
 } from 'react'
-import { PATHS, type RoutePath } from './paths'
+import { PATHS, type AppPath } from './paths'
 
 interface NavigateOptions {
   replace?: boolean
+  search?: string
 }
 
 interface RouterContextValue {
   pathname: string
-  navigate: (to: RoutePath, options?: NavigateOptions) => void
+  search: string
+  navigate: (to: AppPath, options?: NavigateOptions) => void
 }
 
 const RouterContext = createContext<RouterContextValue | null>(null)
@@ -31,30 +33,41 @@ export function RouterProvider({ children }: { children: ReactNode }) {
   const [pathname, setPathname] = useState<string>(() =>
     typeof window !== 'undefined' ? normalizePath(window.location.pathname) : PATHS.LANDING,
   )
+  const [search, setSearch] = useState<string>(() =>
+    typeof window !== 'undefined' ? window.location.search : '',
+  )
 
   useEffect(() => {
     const handlePopState = () => {
       setPathname(normalizePath(window.location.pathname))
+      setSearch(window.location.search)
     }
 
     window.addEventListener('popstate', handlePopState)
     return () => window.removeEventListener('popstate', handlePopState)
   }, [])
 
-  const navigate = useCallback((to: RoutePath, options?: NavigateOptions) => {
+  const navigate = useCallback((to: AppPath, options?: NavigateOptions) => {
     const normalizedTarget = normalizePath(to)
-    if (window.location.pathname !== normalizedTarget) {
+    const nextSearch = options?.search ?? ''
+    const nextUrl = `${normalizedTarget}${nextSearch}`
+
+    if (`${window.location.pathname}${window.location.search}` !== nextUrl) {
       if (options?.replace) {
-        window.history.replaceState({}, '', normalizedTarget)
+        window.history.replaceState({}, '', nextUrl)
       } else {
-        window.history.pushState({}, '', normalizedTarget)
+        window.history.pushState({}, '', nextUrl)
       }
     }
     setPathname(normalizedTarget)
+    setSearch(nextSearch)
     window.scrollTo({ top: 0, behavior: 'smooth' })
   }, [])
 
-  const value = useMemo(() => ({ pathname, navigate }), [pathname, navigate])
+  const value = useMemo(
+    () => ({ pathname, search, navigate }),
+    [pathname, search, navigate],
+  )
 
   return <RouterContext.Provider value={value}>{children}</RouterContext.Provider>
 }
@@ -64,7 +77,7 @@ export function useLocation() {
   if (!context) {
     throw new Error('useLocation must be used within a RouterProvider')
   }
-  return { pathname: context.pathname }
+  return { pathname: context.pathname, search: context.search }
 }
 
 export function useNavigate() {
@@ -76,11 +89,12 @@ export function useNavigate() {
 }
 
 export interface LinkProps extends Omit<AnchorHTMLAttributes<HTMLAnchorElement>, 'href'> {
-  to: RoutePath
+  to: AppPath
+  search?: string
   replace?: boolean
 }
 
-export function Link({ to, replace, onClick, children, ...rest }: LinkProps) {
+export function Link({ to, search, replace, onClick, children, ...rest }: LinkProps) {
   const navigate = useNavigate()
 
   const handleClick = (event: MouseEvent<HTMLAnchorElement>) => {
@@ -96,18 +110,18 @@ export function Link({ to, replace, onClick, children, ...rest }: LinkProps) {
       return
     }
     event.preventDefault()
-    navigate(to, { replace })
+    navigate(to, { replace, search })
   }
 
   return (
-    <a href={to} onClick={handleClick} {...rest}>
+    <a href={`${to}${search ?? ''}`} onClick={handleClick} {...rest}>
       {children}
     </a>
   )
 }
 
 export interface NavLinkProps extends Omit<LinkProps, 'className' | 'children'> {
-  to: RoutePath
+  to: AppPath
   className?: string | ((state: { isActive: boolean }) => string)
   children?: ReactNode | ((state: { isActive: boolean }) => ReactNode)
 }
@@ -133,4 +147,3 @@ export function NavLink({ to, className, children, ...rest }: NavLinkProps) {
     </Link>
   )
 }
-
