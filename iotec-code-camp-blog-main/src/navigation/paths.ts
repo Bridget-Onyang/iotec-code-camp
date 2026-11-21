@@ -5,6 +5,7 @@ export const PATHS = {
   BLOG_DETAILS: '/blog',
   ADMIN: '/admin',
   ADMIN_BLOGS: '/admin/blogs',
+  ADMIN_BLOG_CREATE: '/admin/blogs/new',
   ADMIN_TRANSACTIONS: '/admin/transactions',
   ADMIN_USERS: '/admin/users',
 } as const

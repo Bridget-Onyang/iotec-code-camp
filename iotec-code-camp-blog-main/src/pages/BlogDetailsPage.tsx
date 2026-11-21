@@ -1,76 +1,87 @@
 import { useMemo, useState } from 'react'
+import { useQuery } from 'convex/react'
 import { ArrowLeft, Lock } from 'lucide-react'
 import { BlogArticleHeader } from '@/components/blog/BlogArticleHeader'
 import { BlogContent } from '@/components/blog/BlogContent'
 import { BlogPaywallDialog } from '@/components/blog/BlogPaywallDialog'
 import { Button } from '@/components/ui/button'
-import { getAuthorizedBlogHtml, getBlogById, MOCK_BLOGS } from '@/data/mockBlogs'
+import { mapRemoteBlog } from '@/data/blogMapper'
+import { blogsApi } from '@/data/convexApi'
+import {
+  getAuthorizedBlogHtml,
+  getBlogById,
+  MOCK_BLOGS,
+  type BlogPost,
+} from '@/data/mockBlogs'
+import { isConvexConfigured } from '@/lib/convex'
 import { useLocation, useNavigate } from '@/navigation/RouterContext'
 import { PATHS } from '@/navigation/paths'
 
-export function BlogDetailsPage() {
+function BackToLandingButton() {
   const navigate = useNavigate()
-  const { search } = useLocation()
 
+  return (
+    <Button
+      type="button"
+      variant="outline"
+      size="sm"
+      onClick={() => navigate(PATHS.LANDING)}
+      className="bg-white px-3.5 py-1.5 text-xs font-medium shadow-2xs"
+    >
+      <ArrowLeft aria-hidden="true" className="size-3.5 text-muted-foreground" />
+      <span>Back to Landing</span>
+    </Button>
+  )
+}
+
+function ArticleNotFound() {
+  return (
+    <article className="mx-auto flex w-full max-w-2xl flex-1 flex-col py-8 sm:py-12">
+      <div className="mb-8">
+        <BackToLandingButton />
+      </div>
+
+      <h1 className="font-serif text-3xl font-normal tracking-tight text-foreground">
+        Article not found
+      </h1>
+      <p className="mt-2 max-w-md text-sm leading-relaxed text-muted-foreground">
+        The essay you are looking for may have moved. Head back to the journal to keep
+        reading.
+      </p>
+    </article>
+  )
+}
+
+function ArticleLoading() {
+  return (
+    <article className="mx-auto flex w-full max-w-2xl flex-1 flex-col py-8 sm:py-12">
+      <div className="mb-8">
+        <BackToLandingButton />
+      </div>
+      <p className="text-sm text-muted-foreground">Loading essay…</p>
+    </article>
+  )
+}
+
+function BlogArticleScreen({ blog }: { blog: BlogPost }) {
   const [unlockedBlogIds, setUnlockedBlogIds] = useState<Record<string, boolean>>({})
 
-  const activeBlog = useMemo(() => {
-    const requestedId = new URLSearchParams(search).get('id')
-    return requestedId ? getBlogById(requestedId) : MOCK_BLOGS[0]
-  }, [search])
-
-  if (!activeBlog) {
-    return (
-      <article className="mx-auto flex w-full max-w-2xl flex-1 flex-col py-8 sm:py-12">
-        <div className="mb-8">
-          <Button
-            type="button"
-            variant="outline"
-            size="sm"
-            onClick={() => navigate(PATHS.LANDING)}
-            className="bg-white px-3.5 py-1.5 text-xs font-medium shadow-2xs"
-          >
-            <ArrowLeft aria-hidden="true" className="size-3.5 text-muted-foreground" />
-            <span>Back to Landing</span>
-          </Button>
-        </div>
-
-        <h1 className="font-serif text-3xl font-normal tracking-tight text-foreground">
-          Article not found
-        </h1>
-        <p className="mt-2 max-w-md text-sm leading-relaxed text-muted-foreground">
-          The essay you are looking for may have moved. Head back to the journal to keep
-          reading.
-        </p>
-      </article>
-    )
-  }
-
-  const isUnlocked = !activeBlog.isPaid || Boolean(unlockedBlogIds[activeBlog.id])
+  const isUnlocked = !blog.isPaid || Boolean(unlockedBlogIds[blog.id])
 
   const handleUnlock = () => {
-    setUnlockedBlogIds((previous) => ({ ...previous, [activeBlog.id]: true }))
+    setUnlockedBlogIds((previous) => ({ ...previous, [blog.id]: true }))
   }
 
   const handleRelockCurrentBlog = () => {
-    setUnlockedBlogIds((previous) => ({ ...previous, [activeBlog.id]: false }))
+    setUnlockedBlogIds((previous) => ({ ...previous, [blog.id]: false }))
   }
 
   return (
     <article className="mx-auto flex w-full max-w-2xl flex-1 flex-col py-8 sm:py-12">
       <div className="mb-8 flex flex-wrap items-center justify-between gap-3">
-        <Button
-          type="button"
-          variant="outline"
-          size="sm"
-          onClick={() => navigate(PATHS.LANDING)}
-          className="bg-white px-3.5 py-1.5 text-xs font-medium shadow-2xs"
-        >
-          <ArrowLeft aria-hidden="true" className="size-3.5 text-muted-foreground" />
-          <span>Back to Landing</span>
-        </Button>
+        <BackToLandingButton />
 
-        {activeBlog.isPaid && isUnlocked && (
+        {blog.isPaid && isUnlocked && (
           <Button
             type="button"
             variant="ghost"
@@ -84,16 +95,47 @@ export function BlogDetailsPage() {
         )}
       </div>
 
-      <BlogArticleHeader blog={activeBlog} isUnlocked={isUnlocked} />
+      <BlogArticleHeader blog={blog} isUnlocked={isUnlocked} />
 
       <BlogContent
-        html={getAuthorizedBlogHtml(activeBlog, isUnlocked)}
+        html={getAuthorizedBlogHtml(blog, isUnlocked)}
         isLocked={!isUnlocked}
       />
 
       {!isUnlocked && (
-        <BlogPaywallDialog priceAmount={activeBlog.priceAmount} onUnlock={handleUnlock} />
+        <BlogPaywallDialog priceAmount={blog.priceAmount} onUnlock={handleUnlock} />
       )}
     </article>
   )
+}
+
+function LocalBlogArticle({ slug }: { slug: string | null }) {
+  const blog = useMemo(
+    () => (slug ? getBlogById(slug) : MOCK_BLOGS[0]),
+    [slug],
+  )
+
+  if (!blog) return <ArticleNotFound />
+  return <BlogArticleScreen blog={blog} />
+}
+
+function RemoteBlogArticle({ slug }: { slug: string | null }) {
+  const doc = useQuery(blogsApi.getBySlug, slug ? { slug } : 'skip')
+
+  if (!slug) return <ArticleNotFound />
+  if (doc === undefined) return <ArticleLoading />
+  if (doc === null) return <ArticleNotFound />
+
+  return <BlogArticleScreen blog={mapRemoteBlog(doc)} />
+}
+
+export function BlogDetailsPage() {
+  const { search } = useLocation()
+  const slug = new URLSearchParams(search).get('id')
+
+  if (isConvexConfigured) {
+    return <RemoteBlogArticle slug={slug} />
+  }
+
+  return <LocalBlogArticle slug={slug} />
 }

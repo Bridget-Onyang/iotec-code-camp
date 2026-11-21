@@ -4,7 +4,6 @@ import { Button } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
 import {
   BLOG_CATEGORIES,
-  MOCK_BLOGS,
   type BlogCategory,
   type BlogPostPreview,
 } from '@/data/mockBlogs'
@@ -86,7 +85,7 @@ function BlogCard({ blog }: { blog: BlogPostPreview }) {
   )
 }
 
-export function RecentBlogsSection() {
+export function RecentBlogsSection({ blogs = [] }: { blogs?: readonly BlogPostPreview[] }) {
   const scrollContainerRef = useRef<HTMLDivElement | null>(null)
 
   const [selectedCategory, setSelectedCategory] = useState<FilterCategory>('All')
@@ -96,8 +95,8 @@ export function RecentBlogsSection() {
 
   const filteredBlogs =
     selectedCategory === 'All'
-      ? MOCK_BLOGS
-      : MOCK_BLOGS.filter((blog) => blog.category === selectedCategory)
+      ? blogs
+      : blogs.filter((blog) => blog.category === selectedCategory)
 
   const updateVisibleCards = useCallback(() => {
     if (typeof window === 'undefined') return
@@ -280,7 +279,11 @@ export function RecentBlogsSection() {
       </div>
 
       {/* Blogs Display: Horizontal Carousel (when See All is inactive) vs Expanded Grid (when See All is active) */}
-      {isSeeAll ? (
+      {filteredBlogs.length === 0 ? (
+        <p className="mt-8 rounded-xl border border-dashed border-border bg-card/60 px-5 py-10 text-center text-sm text-muted-foreground">
+          No published essays yet. Anything you publish from the Admin Portal will appear here.
+        </p>
+      ) : isSeeAll ? (
         <div className="mt-8 grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-3">
           {filteredBlogs.map((blog) => (
             <BlogCard key={blog.id} blog={blog} />

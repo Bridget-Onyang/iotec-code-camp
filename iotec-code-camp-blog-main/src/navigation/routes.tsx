@@ -4,9 +4,9 @@ import { AdminLayout } from '../layouts/AdminLayout'
 import { LandingPage } from '../pages/LandingPage'
 import { BlogDetailsPage } from '../pages/BlogDetailsPage'
 import { AdminBlogsPage } from '../pages/admin/AdminBlogsPage'
+import { AdminCreateBlogPage } from '../pages/admin/AdminCreateBlogPage'
 import { AdminTransactionsPage } from '../pages/admin/AdminTransactionsPage'
 import { AdminUsersPage } from '../pages/admin/AdminUsersPage'
-import { getBlogById, MOCK_BLOGS } from '../data/mockBlogs'
 import { useLocation, useNavigate } from './RouterContext'
 import { PATHS, type AppPath } from './paths'
 
@@ -46,6 +46,12 @@ export const ROUTES: readonly RouteConfig[] = [
     component: AdminBlogsPage,
   },
   {
+    path: PATHS.ADMIN_BLOG_CREATE,
+    title: 'Create New Blog | Admin Dashboard — The Tech Report',
+    layout: 'admin',
+    component: AdminCreateBlogPage,
+  },
+  {
     path: PATHS.ADMIN_TRANSACTIONS,
     title: 'Transactions | Admin Dashboard — The Tech Report',
     layout: 'admin',
@@ -62,7 +68,7 @@ export const ROUTES: readonly RouteConfig[] = [
 const DEFAULT_ROUTE = ROUTES[0]
 
 export function AppRouter() {
-  const { pathname, search } = useLocation()
+  const { pathname } = useLocation()
   const navigate = useNavigate()
 
   const matchedRoute = ROUTES.find((route) => route.path === pathname) ?? DEFAULT_ROUTE
@@ -73,17 +79,8 @@ export function AppRouter() {
       return
     }
 
-    if (matchedRoute.path === PATHS.BLOG_DETAILS) {
-      const requestedId = new URLSearchParams(search).get('id')
-      const blog = requestedId ? getBlogById(requestedId) : MOCK_BLOGS[0]
-      document.title = blog
-        ? `${blog.title} — Onyang Bridget`
-        : 'Article not found — The Tech Report'
-      return
-    }
-
     document.title = matchedRoute.title
-  }, [matchedRoute, search, navigate])
+  }, [matchedRoute, navigate])
 
   const ResolvedRoute = matchedRoute.redirectTo
     ? (ROUTES.find((route) => route.path === matchedRoute.redirectTo) ?? DEFAULT_ROUTE)
